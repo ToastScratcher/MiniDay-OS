@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>MiniDay OS</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        :root { --primary: #6366f1; --bg: #000; --glass: rgba(255, 255, 255, 0.12); }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
+        
+        body { 
+            font-family: -apple-system, sans-serif; 
+            background: var(--bg); color: white; margin: 0; 
+            overflow: hidden; width: 100vw; height: 100vh; 
+        }
+
+        #wallpaper { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: radial-gradient(circle at 50% 30%, #1e1b4b 0%, #000 100%); 
+            z-index: -1; 
+        }
+
+        /* HEADER */
+        .status-header { 
+            position: fixed; top: 0; width: 100%; text-align: center; 
+            padding-top: 55px; z-index: 10; pointer-events: none; 
+        }
+        #home-clock { font-size: 3.8rem; font-weight: 200; margin: 0; letter-spacing: -1.5px; }
+        #home-date { font-size: 1.1rem; color: #94a3b8; margin-top: -5px; }
+
+        /* SCROLLABLE GRID */
+        #main-scroll-container { 
+            height: 100vh; overflow-y: auto; 
+            padding: 180px 20px 140px 20px; 
+            -webkit-overflow-scrolling: touch; 
+        }
+        .app-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 25px 15px; justify-items: center; }
+
+        /* ICONS */
+        .app-icon { display: flex; flex-direction: column; align-items: center; width: 65px; cursor: pointer; }
+        .icon-box { 
+            width: 60px; height: 60px; border-radius: 15px; display: flex; 
+            align-items: center; justify-content: center; font-size: 1.9rem; 
+            margin-bottom: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); 
+            transition: transform 0.1s;
+        }
+        .app-icon:active .icon-box { transform: scale(0.9); }
+        .app-label { font-size: 0.68rem; color: #e2e8f0; text-align: center; font-weight: 500; }
+
+        /* DOCK */
+        .dock-container { 
+            position: fixed; bottom: 0; width: 100%; 
+            padding: 10px 20px 40px 20px; 
+            display: flex; justify-content: center; z-index: 15; 
+        }
+        .dock { 
+            width: 100%; max-width: 340px; height: 85px; 
+            background: var(--glass); backdrop-filter: blur(20px); 
+            border-radius: 30px; display: flex; justify-content: space-around; 
+            align-items: center; border: 0.5px solid rgba(255,255,255,0.2); 
+        }
+
+        /* WINDOWS */
+        .app-window { 
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
+            background: #0f172a; z-index: 100; display: none; flex-direction: column; 
+        }
+        .app-header { 
+            padding: 55px 20px 15px 20px; background: #1e293b; 
+            display: flex; justify-content: space-between; align-items: center; 
+        }
+        .close-btn { 
+            background: #ef4444; color: white; border: none; 
+            padding: 8px 15px; border-radius: 10px; font-weight: bold; 
+        }
+        
+        iframe { width: 100%; flex-grow: 1; border: none; background: white; }
+        #map-container { width: 100%; flex-grow: 1; }
+
+        /* APP CONTENT */
+        .content { flex-grow: 1; overflow-y: auto; padding: 20px; }
+        input { width: 100%; padding: 14px; border-radius: 12px; border: 1px solid #334155; background: #1e293b; color: white; margin-bottom: 10px; }
+        .action-btn { background: var(--primary); color: white; border: none; border-radius: 12px; padding: 14px; width: 100%; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div id="wallpaper"></div>
+    <div class="status-header">
+        <h1 id="home-clock">00:00</h1>
+        <div id="home-date">Sunday, 4 Jan</div>
+    </div>
+
+    <div id="main-scroll-container">
+        <div class="app-grid">
+            <div class="app-icon" onclick="window.open('https://gemini.google.com', '_blank')">
+                <div class="icon-box" style="background: linear-gradient(45deg, #4285f4, #9b72cb)">✨</div>
+                <span class="app-label">Gemini</span>
+            </div>
+            
+            <div class="app-icon" onclick="openApp('youtube')">
+                <div class="icon-box" style="background:#ff0000">▶️</div>
+                <span class="app-label">YouTube</span>
+            </div>
+
+            <div class="app-icon" onclick="window.open('https://www.ubereats.com', '_blank')">
+                <div class="icon-box" style="background:#06c167">🍔</div>
+                <span class="app-label">Uber Eats</span>
+            </div>
+
+            <div class="app-icon" onclick="openApp('quran')">
+                <div class="icon-box" style="background:#059669">📖</div>
+                <span class="app-label">Quran</span>
+            </div>
+
+            <div class="app-icon" onclick="openApp('shop')"><div class="icon-box" style="background:#f59e0b">🛒</div><span class="app-label">Shopping</span></div>
+            <div class="app-icon" onclick="openApp('tv')"><div class="icon-box" style="background:#bb1919">📺</div><span class="app-label">TV Guide</span></div>
+            <div class="app-icon" onclick="openApp('notes')"><div class="icon-box" style="background:#64748b">📝</div><span class="app-label">Notes</span></div>
+            <div class="app-icon" onclick="openApp('news')"><div class="icon-box" style="background:#00457c">📰</div><span class="app-label">News</span></div>
+            <div class="app-icon" onclick="openApp('calc')"><div class="icon-box" style="background:#4b5563">🔢</div><span class="app-label">Calculator</span></div>
+        </div>
+    </div>
+
+    <div class="dock-container">
+        <div class="dock">
+            <div class="app-icon" onclick="openApp('map')"><div class="icon-box" style="background:#10b981; width:52px; height:52px; font-size:1.6rem;">🗺️</div></div>
+            <div class="app-icon" onclick="openApp('music')"><div class="icon-box" style="background:#6366f1; width:52px; height:52px; font-size:1.6rem;">🎵</div></div>
+            <div class="app-icon" onclick="openApp('football')"><div class="icon-box" style="background:#3d195b; width:52px; height:52px; font-size:1.6rem;">⚽</div></div>
+        </div>
+    </div>
+
+    <div id="app-window" class="app-window">
+        <div class="app-header">
+            <span id="app-title" style="font-weight:bold">App</span>
+            <button class="close-btn" onclick="closeApp()">BACK</button>
+        </div>
+        <div id="app-content" style="flex-grow:1; display:flex; flex-direction:column;"></div>
+    </div>
+
+    <script>
+        function updateClock() {
+            const d = new Date();
+            document.getElementById('home-clock').innerText = d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            document.getElementById('home-date').innerText = d.toLocaleDateString(undefined, {weekday: 'long', month: 'short', day: 'numeric'});
+        }
+        setInterval(updateClock, 1000); updateClock();
+
+        let mapObj = null;
+
+        function openApp(id) {
+            const win = document.getElementById('app-window');
+            const cont = document.getElementById('app-content');
+            const title = document.getElementById('app-title');
+            win.style.display = 'flex';
+
+            if(id === 'youtube') {
+                title.innerText = "YouTube Short";
+                cont.innerHTML = `<iframe src="https://www.youtube.com/embed/C3nvdFDAzyY" allowfullscreen></iframe>`;
+            }
+            if(id === 'quran') {
+                title.innerText = "Quran Cloud";
+                cont.innerHTML = `<iframe src="https://quran.com"></iframe>`;
+            }
+            if(id === 'map') {
+                title.innerText = "Free Maps";
+                cont.innerHTML = `<div id="map-container" style="height:100%"></div>`;
+                setTimeout(() => {
+                    mapObj = L.map('map-container').setView([54.9783, -1.6178], 13);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapObj);
+                }, 100);
+            }
+            if(id === 'football') {
+                title.innerText = "Scores";
+                cont.innerHTML = `<iframe src="https://www.bing.com/search?q=premier+league+scores"></iframe>`;
+            }
+            if(id === 'music') {
+                title.innerText = "Music Player";
+                cont.innerHTML = `<div class="content" style="text-align:center;"><div id="mArt" style="width:180px; height:180px; background:#1e293b; margin:20px auto; border-radius:20px; display:flex; align-items:center; justify-content:center; font-size:3rem;">🎵</div><input type="file" id="mFile" style="display:none" onchange="handleMusic(event)"><button class="action-btn" onclick="document.getElementById('mFile').click()">OPEN FILE</button><audio id="mAudio" controls style="width:100%; margin-top:30px;"></audio></div>`;
+            }
+            if(id === 'shop') {
+                title.innerText = "Shopping";
+                cont.innerHTML = `<div class="content"><input id="lIn" placeholder="Item..."><button class="action-btn" onclick="addShop()">ADD</button><div id="lC" style="margin-top:20px;"></div></div>`;
+                renderShop();
+            }
+            if(id === 'notes') {
+                title.innerText = "Notes";
+                cont.innerHTML = `<div class="content" style="display:flex; flex-direction:column; height:100%;"><textarea id="nArea" style="flex:1; background:#1e293b; color:white; border:none; padding:15px; border-radius:12px; margin-bottom:15px;"></textarea><button class="action-btn" onclick="exportNote()">SAVE .TXT</button></div>`;
+            }
+            if(id === 'news') {
+                title.innerText = "Local News";
+                cont.innerHTML = `<iframe src="https://www.chroniclelive.co.uk/"></iframe>`;
+            }
+            if(id === 'calc') {
+                title.innerText = "Calculator";
+                cont.innerHTML = `<iframe src="https://www.google.com/search?q=calculator"></iframe>`;
+            }
+            if(id === 'tv') {
+                title.innerText = "TV Guide";
+                cont.innerHTML = `<iframe src="https://www.tvguide.co.uk/"></iframe>`;
+            }
+        }
+
+        function closeApp() { 
+            if(mapObj) { mapObj.remove(); mapObj = null; }
+            document.getElementById('app-window').style.display = 'none'; 
+            document.getElementById('app-content').innerHTML = ''; 
+        }
+
+        function handleMusic(e) {
+            const f = e.target.files[0]; const a = document.getElementById('mAudio');
+            a.src = URL.createObjectURL(f); a.play();
+        }
+
+        function addShop() {
+            const i = document.getElementById('lIn'); if(!i.value) return;
+            let l = JSON.parse(localStorage.getItem('m_v9')) || []; l.push(i.value);
+            localStorage.setItem('m_v9', JSON.stringify(l)); i.value = ''; renderShop();
+        }
+        function renderShop() {
+            let l = JSON.parse(localStorage.getItem('m_v9')) || [];
+            document.getElementById('lC').innerHTML = l.map((x, i) => `<div style="background:#1e293b; padding:12px; margin-bottom:8px; border-radius:10px; display:flex; justify-content:space-between;"><span>${x}</span><span onclick="delShop(${i})" style="color:#ef4444; font-weight:bold;">✕</span></div>`).join('');
+        }
+        function delShop(i) {
+            let l = JSON.parse(localStorage.getItem('m_v9')) || []; l.splice(i,1);
+            localStorage.setItem('m_v9', JSON.stringify(l)); renderShop();
+        }
+        function exportNote() {
+            const blob = new Blob([document.getElementById('nArea').value], {type:"text/plain"});
+            const a = document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="note.txt"; a.click();
+        }
+    </script>
+</body>
+</html>
