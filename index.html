@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MiniDay OS</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        :root { 
+            --bg: #f4f5f9; --card: #ffffff; --primary: #5d5fef; --text: #1a1b2e; --sub: #9da3b4; --input: #f0f2f8;
+        }
+        [data-theme="dark"] {
+            --bg: #121212; --card: #1e1e1e; --text: #ffffff; --sub: #a0a0a0; --input: #2d2d2d;
+        }
+        
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; font-family: -apple-system, sans-serif; transition: background 0.2s; }
+        body { background: var(--bg); color: var(--text); margin: 0; padding: 0; overflow-x: hidden; }
+
+        /* HEADER */
+        .header { padding: 45px 20px 20px; text-align: center; background: var(--card); border-radius: 0 0 30px 30px; position: relative; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .settings-icon { position: absolute; top: 45px; right: 25px; font-size: 1.5rem; cursor: pointer; }
+        #clock-display { font-size: 1.8rem; margin: 0; font-weight: 800; font-variant-numeric: tabular-nums; }
+        .calendar-row { display: flex; justify-content: space-between; padding: 20px 10px 0; }
+        .cal-day { display: flex; flex-direction: column; align-items: center; width: 40px; font-size: 0.8rem; font-weight: 600; }
+        .day-num { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; margin-top: 5px; }
+        .day-num.active { background: var(--primary); color: white; }
+
+        /* MOTIVATION */
+        .quote-box { margin: 15px 20px; padding: 22px; border-radius: 25px; background: linear-gradient(135deg, #6366f1, #a855f7); color: white; text-align: center; box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3); cursor: pointer; }
+        .quote-box p { margin: 0; font-style: italic; font-size: 1rem; line-height: 1.4; }
+
+        /* APPS */
+        .section-label { padding: 20px 25px 10px; font-weight: 800; font-size: 1rem; text-transform: uppercase; letter-spacing: 1px; color: var(--sub); }
+        .apps-row { display: flex; gap: 12px; padding: 10px 20px; overflow-x: auto; scrollbar-width: none; }
+        .app-card { background: var(--card); min-width: 95px; padding: 18px 10px; border-radius: 22px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.04); cursor: pointer; }
+        .app-card div { font-size: 1.5rem; margin-bottom: 5px; }
+        .app-card span { font-size: 0.75rem; font-weight: 700; color: var(--text); display: block; }
+
+        /* OFFLINE CALC */
+        .calc-container { background: #000; padding: 20px; border-radius: 30px; width: 290px; margin: auto; }
+        .calc-screen { color: white; font-size: 2.8rem; text-align: right; padding: 20px 10px; min-height: 90px; }
+        .calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        .calc-btn { height: 58px; border-radius: 50%; border: none; font-size: 1.3rem; font-weight: bold; cursor: pointer; }
+        .btn-num { background: #333; color: white; }
+        .btn-op { background: #ff9f0a; color: white; }
+        .btn-top { background: #a5a5a5; color: black; }
+
+        /* OVERLAY */
+        .app-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 1000; display: none; flex-direction: column; }
+        .app-bar { padding: 50px 20px 15px; display: flex; justify-content: space-between; align-items: center; background: var(--card); border-bottom: 1px solid var(--input); }
+        .close-btn { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 12px; font-weight: 700; }
+        .content-area { flex: 1; overflow-y: auto; padding: 20px; }
+
+        /* TRAFFIC MAP */
+        #home-map { height: 200px; border-radius: 25px; border: 5px solid var(--card); }
+        .traffic-legend { background: var(--card); padding: 10px; border-radius: 12px; font-size: 0.7rem; font-weight: bold; display: flex; gap: 10px; justify-content: center; margin-top: 10px; }
+        .key-item { display: flex; align-items: center; gap: 5px; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; }
+
+        /* LISTS */
+        .item-row { display: flex; align-items: center; background: var(--card); padding: 15px; border-radius: 18px; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.03); }
+        input[type="text"] { width: 100%; border: none; background: var(--input); color: var(--text); padding: 15px; border-radius: 15px; margin-bottom: 10px; font-size: 1rem; }
+    </style>
+</head>
+<body data-theme="light">
+
+    <div class="header">
+        <div class="settings-icon" onclick="openApp('settings')">⚙️</div>
+        <h1 id="clock-display">00:00:00 PM</h1>
+        <div class="calendar-row" id="calendar-bar"></div>
+    </div>
+
+    <div class="quote-box" onclick="newQuote()">
+        <p id="q-text">"The best of people are those that bring most benefit to the rest of mankind."</p>
+    </div>
+
+    <div class="section-label">Apps</div>
+    <div class="apps-row">
+        <div class="app-card" onclick="openApp('calc')"><div>🔢</div><span>Calculator</span></div>
+        <div class="app-card" onclick="openApp('shop')"><div>🛒</div><span>Shopping</span></div>
+        <div class="app-card" onclick="openApp('quran')"><div>📖</div><span>Quran</span></div>
+        <div class="app-card" onclick="openApp('journal')"><div>✍️</div><span>Journal</span></div>
+        <div class="app-card" onclick="openApp('log')"><div>📋</div><span>Logbook</span></div>
+    </div>
+
+    <div class="section-label">Live Traffic Map</div>
+    <div style="margin: 0 20px 40px;">
+        <div id="home-map"></div>
+        <div class="traffic-legend">
+            <div class="key-item"><div class="dot" style="background:#cc0000;"></div> Busy</div>
+            <div class="key-item"><div class="dot" style="background:#ffcc00;"></div> Normal</div>
+            <div class="key-item"><div class="dot" style="background:#00cc00;"></div> Peaceful</div>
+        </div>
+    </div>
+
+    <div id="app-overlay" class="app-overlay">
+        <div class="app-bar">
+            <span id="app-title" style="font-weight:900; font-size:1.2rem;">MiniDay</span>
+            <button class="close-btn" onclick="closeApp()">BACK</button>
+        </div>
+        <div id="app-content" class="content-area"></div>
+    </div>
+
+    <script>
+        // --- DATA & CLOCK ---
+        const quotes = ["The best of people are those that bring most benefit to others.", "Be like a flower that gives fragrance even to the hand that crushes it.", "Patience is a pillar of faith.", "Kindness is a mark of faith.", "Believe in yourself and the rest will fall into place."];
+        function newQuote() { document.getElementById('q-text').innerText = `"${quotes[Math.floor(Math.random()*quotes.length)]}"`; }
+        
+        function updateClock() {
+            document.getElementById('clock-display').innerText = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+        }
+        setInterval(updateClock, 1000); updateClock();
+
+        const cal = document.getElementById('calendar-bar');
+        ['M','T','W','T','F','S','S'].forEach((d,i) => { 
+            cal.innerHTML += `<div class="cal-day"><div>${d}</div><div class="day-num ${i===0?'active':''}">${5+i}</div></div>`;
+        });
+
+        // --- THEME ---
+        function toggleTheme() {
+            const next = document.body.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+            document.body.setAttribute('data-theme', next);
+            localStorage.setItem('md_theme', next);
+        }
+        if(localStorage.getItem('md_theme')) document.body.setAttribute('data-theme', localStorage.getItem('md_theme'));
+
+        // --- APP CONTROLLER ---
+        let cVal = "";
+        function openApp(id) {
+            const cont = document.getElementById('app-content');
+            const title = document.getElementById('app-title');
+            document.getElementById('app-overlay').style.display = "flex";
+            cont.innerHTML = ""; 
+
+            if(id === 'calc') {
+                title.innerText = "Offline Calculator";
+                cont.innerHTML = `<div class="calc-container"><div class="calc-screen" id="cScr">0</div><div class="calc-grid">
+                    ${['AC','+/-','%','/','7','8','9','*','4','5','6','-','1','2','3','+'].map(b => `<button class="calc-btn ${isNaN(b)?'btn-op':'btn-num'}" onclick="calcIn('${b}')">${b}</button>`).join('')}
+                    <button class="calc-btn btn-num" style="grid-column: span 2; border-radius:30px" onclick="calcIn('0')">0</button><button class="calc-btn btn-num" onclick="calcIn('.')">.</button><button class="calc-btn btn-op" onclick="calcIn('=')">=</button>
+                </div></div>`;
+            } else if(id === 'shop') {
+                title.innerText = "Shopping List";
+                renderShop();
+            } else if(id === 'settings') {
+                title.innerText = "Settings";
+                cont.innerHTML = `<div class="item-row" style="justify-content:space-between"><span>Dark Mode</span><button onclick="toggleTheme()" class="close-btn">Toggle</button></div>
+                <div class="item-row" style="flex-direction:column; align-items:flex-start; margin-top:20px;">
+                <b>Creator: Toast420 @2763JNJ</b><a href="https://youtube.com/@2763JNJ" style="color:red; margin-top:10px; font-weight:bold; text-decoration:none;">SUBSCRIBE ON YOUTUBE</a></div>`;
+            } else if(id === 'quran') {
+                title.innerText = "Quran";
+                cont.innerHTML = `<iframe src="https://quran.com" style="width:100%; height:100%; border:none;"></iframe>`;
+            } else if(id === 'journal') {
+                title.innerText = "Journal";
+                const saved = localStorage.getItem('md_j') || "";
+                cont.innerHTML = `<textarea id="jArea" style="height:350px; width:100%; border-radius:15px; border:none; background:var(--input); color:var(--text); padding:15px;">${saved}</textarea><button class="close-btn" style="width:100%; margin-top:15px" onclick="localStorage.setItem('md_j', document.getElementById('jArea').value); alert('Saved!')">SAVE JOURNAL</button>`;
+            } else if(id === 'log') {
+                title.innerText = "Logbook";
+                renderLog();
+            }
+        }
+
+        // --- CALCULATOR LOGIC ---
+        function calcIn(v) {
+            const s = document.getElementById('cScr');
+            if(v === 'AC') cVal = "";
+            else if(v === '=') { try { cVal = eval(cVal).toString(); } catch { cVal = "Error"; } }
+            else cVal += v;
+            s.innerText = cVal || "0";
+        }
+
+        // --- SHOPPING LIST LOGIC ---
+        function renderShop() {
+            let list = JSON.parse(localStorage.getItem('md_shop')) || [];
+            document.getElementById('app-content').innerHTML = `
+                <input id="sIn" placeholder="Add item..." onkeypress="if(event.key==='Enter')addShop()">
+                <div id="sList" style="margin-top:10px;">${list.map((it,i)=>`<div class="item-row"><input type="checkbox" ${it.d?'checked':''} onclick="toggleShop(${i})"><span style="flex:1; margin-left:10px; ${it.d?'text-decoration:line-through;color:var(--sub)':''}">${it.t}</span><button onclick="delShop(${i})" style="border:none; background:none; color:red; font-weight:bold;">✕</button></div>`).join('')}</div>`;
+        }
+        function addShop() {
+            let list = JSON.parse(localStorage.getItem('md_shop')) || [];
+            const val = document.getElementById('sIn').value;
+            if(val) { list.push({t: val, d: false}); localStorage.setItem('md_shop', JSON.stringify(list)); renderShop(); }
+        }
+        function toggleShop(i) {
+            let list = JSON.parse(localStorage.getItem('md_shop')); list[i].d = !list[i].d;
+            localStorage.setItem('md_shop', JSON.stringify(list)); renderShop();
+        }
+        function delShop(i) {
+            let list = JSON.parse(localStorage.getItem('md_shop')); list.splice(i,1);
+            localStorage.setItem('md_shop', JSON.stringify(list)); renderShop();
+        }
+
+        // --- LOGBOOK LOGIC ---
+        function renderLog() {
+            let logs = JSON.parse(localStorage.getItem('md_logs')) || [];
+            document.getElementById('app-content').innerHTML = `<input id="lK" placeholder="Name/Plate"><input id="lV" placeholder="Details"><button onclick="addLog()" class="close-btn" style="width:100%">ADD ENTRY</button>
+            <div style="margin-top:20px;">${logs.map((l,i)=>`<div class="item-row"><b>${l.k}:</b><span style="margin-left:5px">${l.v}</span><button onclick="delLog(${i})" style="margin-left:auto; border:none; color:red;">✕</button></div>`).join('')}</div>`;
+        }
+        function addLog() {
+            let logs = JSON.parse(localStorage.getItem('md_logs')) || [];
+            logs.push({k: document.getElementById('lK').value, v: document.getElementById('lV').value});
+            localStorage.setItem('md_logs', JSON.stringify(logs)); renderLog();
+        }
+        function delLog(i) {
+            let logs = JSON.parse(localStorage.getItem('md_logs')); logs.splice(i,1);
+            localStorage.setItem('md_logs', JSON.stringify(logs)); renderLog();
+        }
+
+        function closeApp() { document.getElementById('app-overlay').style.display = "none"; }
+
+        // --- MAP INIT ---
+        const map = L.map('home-map', {zoomControl: false}).setView([51.505, -0.09], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        L.tileLayer('https://{s}.google.com/vt/lyrs=m,traffic&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] }).addTo(map);
+    </script>
+</body>
+</html>
